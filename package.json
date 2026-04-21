@@ -1,5 +1,5 @@
 {
-  "name": "db_backup",
+  "name": "backinghum",
   "version": "1.0.1",
   "description": "Interactive CLI to create, list, restore, and delete MongoDB/MySQL/PostgreSQL backups.",
   "main": "bin/cli.js",
@@ -37,6 +37,6 @@
     "inquirer": "^8.2.7"
   },
   "bin": {
-    "db_backup": "./bin/cli.js"
+    "backinghum": "./bin/cli.js"
   }
 }
