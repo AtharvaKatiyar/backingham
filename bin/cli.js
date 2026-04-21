@@ -8,7 +8,7 @@ import deleteCommand from "../src/commands/backup/delete.js";
 const program = new Command();
 
 program
-    .name('db-backup')
+    .name('backinghum')
     .description('A CLI tool for database backups and restores')
     .version('1.0.0');
 
