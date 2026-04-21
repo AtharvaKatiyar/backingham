@@ -49,7 +49,8 @@ backinghum --version
   - MySQL (`mysql`)
   - PostgreSQL (`psql`)
 - Backup deletion by backup ID (file/folder + registry entry).
-- Registry persistence in `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` override).
+- Registry persistence in `$HOME/.db_backup/backupRegistry.json`.
+- Optional `DB_BACKUP_REGISTRY_PATH` override is accepted only when the path is inside the current user's home directory.
 - Connection snapshot saved with each backup entry to support future restore runs.
 
 ---
@@ -267,7 +268,7 @@ Run:
 
 What it does:
 
-- Reads `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` if set)
+- Reads `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` if set to a path inside the current user's home directory)
 - Prints backup history with:
   - ID
   - DB type
@@ -354,7 +355,7 @@ For URI-based backups, if `database` was not explicitly provided in prompts/opti
 ## Notes
 
 - The linked executable from `package.json` is `backinghum`.
-- The registry file path can be overridden using `DB_BACKUP_REGISTRY_PATH`.
+- The registry file path can be overridden using `DB_BACKUP_REGISTRY_PATH`, but only to a location inside the current user's home directory.
 - Backups can contain sensitive credentials in the saved connection snapshot; protect this project directory accordingly.
 
 ---

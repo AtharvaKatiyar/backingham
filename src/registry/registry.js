@@ -1,12 +1,12 @@
 //registry.js
-import fs from "fs";
-import path from "path";
-import os from "os";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { RegistryError, ValidationError } from "../utils/errors.js";
 
 const DEFAULT_REGISTRY_DIR = path.join(os.homedir(), ".db_backup");
 const DEFAULT_REGISTRY_PATH = path.join(DEFAULT_REGISTRY_DIR, "backupRegistry.json");
-const LEGACY_REGISTRY_PATH = path.resolve("src/registry/backupRegistry.json");
+const USER_HOME = path.resolve(os.homedir());
 
 function isValidConnection(conn) {
   if (!conn) return false;
@@ -21,7 +21,21 @@ function isValidConnection(conn) {
 }
 
 function getRegistryPath() {
-  return process.env.DB_BACKUP_REGISTRY_PATH || DEFAULT_REGISTRY_PATH;
+  const customPath = process.env.DB_BACKUP_REGISTRY_PATH?.trim();
+
+  if (!customPath) {
+    return DEFAULT_REGISTRY_PATH;
+  }
+
+  const resolvedCustomPath = path.resolve(customPath);
+  const relativeToHome = path.relative(USER_HOME, resolvedCustomPath);
+  const isInsideHome = relativeToHome === "" || (!relativeToHome.startsWith("..") && !path.isAbsolute(relativeToHome));
+
+  if (!isInsideHome) {
+    return DEFAULT_REGISTRY_PATH;
+  }
+
+  return resolvedCustomPath;
 }
 
 function ensureRegistryFile() {
@@ -29,15 +43,11 @@ function ensureRegistryFile() {
   const registryDir = path.dirname(registryPath);
 
   if (!fs.existsSync(registryDir)) {
-    fs.mkdirSync(registryDir, { recursive: true });
+    fs.mkdirSync(registryDir, { recursive: true, mode: 0o700 });
   }
 
   if (!fs.existsSync(registryPath)) {
-    if (fs.existsSync(LEGACY_REGISTRY_PATH)) {
-      fs.copyFileSync(LEGACY_REGISTRY_PATH, registryPath);
-    } else {
-      fs.writeFileSync(registryPath, "[]");
-    }
+    fs.writeFileSync(registryPath, "[]", { mode: 0o600 });
   }
 
   return registryPath;

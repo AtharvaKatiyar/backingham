@@ -51,7 +51,9 @@ Backup metadata is saved at:
 
 Override with:
 
-- `DB_BACKUP_REGISTRY_PATH=/custom/path/backupRegistry.json`
+- `DB_BACKUP_REGISTRY_PATH=/home/<user>/.db_backup/customRegistry.json`
+
+Note: custom registry paths are accepted only if they are inside the current user's home directory.
 
 ## 5) Uninstall
 
