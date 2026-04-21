@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.4] - 2026-04-22
+
+### Features
+- Improved backup registry entry creation for URI-based connections.
+- Added database name inference from URI path when `database` is missing.
+- Prevents registry validation failures for URI-only backup flows.
+
+### Prompt Flow Updates
+- MySQL remote flow now supports two methods:
+  - Connection URI
+  - Manual details
+- PostgreSQL remote flow now supports two methods:
+  - Connection URI
+  - Manual details
+
+### Tests
+- Added create-command tests for URI database inference and fallback behavior:
+  - `tests/commands/backup/create.test.js`
+- Updated prompt tests to match current remote flow behavior:
+  - `tests/prompts/mysqlPrompt.test.js`
+  - `tests/prompts/postgresPrompt.test.js`
+- Updated option-validation expectation to match current validator behavior:
+  - `tests/utils/options.test.js`
+
+### Documentation
+- Updated README and docs to reflect new remote connection flows and URI behavior.
+- Fixed npm README documentation links by switching to absolute URLs via `unpkg`:
+  - `docs/INSTALLATION.md`
+  - `docs/COMMANDS.md`
+  - `docs/ARCHITECTURE.md`
+
 ## [1.0.3] - 2026-04-21
 
 ### Security
