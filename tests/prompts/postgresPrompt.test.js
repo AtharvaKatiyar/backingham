@@ -68,12 +68,14 @@ test("Postgres prompt - Remote flow", async () => {
   await withMockedPrompt(
     [
       { connectionType: "Remote" },
+      { method: "Manual details" },
       {
         host: "10.0.0.25",
         port: "5433",
         user: "postgres",
         password: "pw",
         database: "app",
+        sslmode: "require",
         output: "./backups",
       },
     ],
@@ -81,7 +83,7 @@ test("Postgres prompt - Remote flow", async () => {
       const config = await getPostgresConfig();
 
       assert.equal(config.db, "postgres");
-      assert.equal(config.mode, "local");
+      assert.equal(config.mode, "remote");
       assert.equal(config.host, "10.0.0.25");
       assert.equal(config.port, "5433");
     }

@@ -10,6 +10,27 @@ import fs from "fs";
 import path from "path";
 import { formatError, ValidationError } from "../../utils/errors.js";
 
+function inferDatabaseName(config) {
+  if (config?.database) {
+    return config.database;
+  }
+
+  if (config?.uri) {
+    try {
+      const parsed = new URL(config.uri.trim());
+      const dbFromPath = parsed.pathname.replace(/^\/+/, "").split("/")[0];
+
+      if (dbFromPath) {
+        return decodeURIComponent(dbFromPath);
+      }
+    } catch {
+      // ignore invalid URI, fallback below
+    }
+  }
+
+  return config?.db || "database";
+}
+
 export default async function createBackup(options) {
   try {
     console.log("Starting backup process...");
@@ -44,11 +65,12 @@ export default async function createBackup(options) {
     console.log("Backup created successfully at:", file);
 
     const stats = fs.statSync(file);
+    const database = inferDatabaseName(config);
 
     const entry = {
       id: Date.now().toString(),
       db: config.db,
-      database: config.database,
+      database,
       path: path.resolve(file),
 
       // 🔥 ADD THIS (CRITICAL)

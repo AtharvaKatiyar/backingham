@@ -25,7 +25,7 @@ test("validateOptions for mongodb uri mode", () => {
   assert.deepEqual(missing, []);
 });
 
-test("validateOptions for mongodb local missing auth not required", () => {
+test("validateOptions for mongodb local requires auth fields", () => {
   const missing = validateOptions({
     db: "mongodb",
     host: "127.0.0.1",
@@ -34,7 +34,7 @@ test("validateOptions for mongodb local missing auth not required", () => {
     output: "./backups",
   });
 
-  assert.deepEqual(missing, []);
+  assert.deepEqual(missing, ["user", "password"]);
 });
 
 test("validateOptions for mysql complete config", () => {

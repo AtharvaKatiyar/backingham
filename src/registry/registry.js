@@ -1,3 +1,4 @@
+//registry.js
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -6,6 +7,18 @@ import { RegistryError, ValidationError } from "../utils/errors.js";
 const DEFAULT_REGISTRY_DIR = path.join(os.homedir(), ".db_backup");
 const DEFAULT_REGISTRY_PATH = path.join(DEFAULT_REGISTRY_DIR, "backupRegistry.json");
 const LEGACY_REGISTRY_PATH = path.resolve("src/registry/backupRegistry.json");
+
+function isValidConnection(conn) {
+  if (!conn) return false;
+
+  if (conn.uri) return true;
+
+  if (conn.mode === "docker") {
+    return conn.container && conn.user && conn.password;
+  }
+
+  return conn.host && conn.port && conn.user && conn.password;
+}
 
 function getRegistryPath() {
   return process.env.DB_BACKUP_REGISTRY_PATH || DEFAULT_REGISTRY_PATH;
@@ -61,6 +74,10 @@ function writeRegistry(data) {
 }
 
 export function addBackup(entry) {
+  if (!isValidConnection(entry.connection)) {
+    throw new ValidationError("Invalid backup entry: connection details missing");
+  }
+
   if (!entry?.id || !entry?.db || !entry?.database || !entry?.path) {
     throw new ValidationError("Invalid backup entry: required fields are missing");
   }
