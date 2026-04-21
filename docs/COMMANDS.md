@@ -16,6 +16,21 @@ backinghum backup:create --compress
 backinghum backup:create --compress --verbose
 ```
 
+Interactive flow summary:
+
+- Select DB: `mongodb` | `mysql` | `postgres`
+- MySQL:
+	- Local
+	- Remote → `Connection URI` or `Manual details`
+- PostgreSQL:
+	- Local
+	- Remote → `Connection URI` or `Manual details`
+	- Docker
+
+Notes:
+- In URI mode, only URI + output are requested.
+- For URI mode backups, database name is inferred from URI path when missing and saved to the registry.
+
 ---
 
 ## `backinghum backup:list`

@@ -22,6 +22,8 @@ Registers commands and maps them to command handlers.
 - `src/commands/backup/restore.js`
 - `src/commands/backup/delete.js`
 
+`create.js` merges normalized CLI options with prompt answers, supports URI/manual remote flows (MySQL/PostgreSQL), and normalizes registry entries by deriving a `database` value from URI path when needed.
+
 ### Adapters
 - `src/adapters/baseAdapter.js`
 - `src/adapters/adaptorFactory.js`
