@@ -1,6 +1,6 @@
 {
   "name": "backinghum",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Interactive CLI to create, list, restore, and delete MongoDB/MySQL/PostgreSQL backups.",
   "main": "bin/cli.js",
   "type": "module",
