@@ -4,6 +4,41 @@ import { spawn } from "child_process";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { BackupError, ConnectionError, RestoreError, ValidationError } from "../utils/errors.js";
+
+export function buildMongoUri(config) {
+  const { uri, host, port, user, password, database } = config;
+
+  if (uri && uri.trim() !== "") {
+    return uri;
+  }
+
+  if (!host || !port || !database) {
+    throw new ValidationError("MongoDB config is missing required fields (host/port/database)");
+  }
+
+  if (user && password) {
+    return `mongodb://${user}:${password}@${host}:${port}/${database}?authSource=admin`;
+  }
+
+  return `mongodb://${host}:${port}/${database}`;
+}
+
+export function buildMongoDumpArgs(uri, outputPath) {
+  return ["--uri", uri, "--out", outputPath];
+}
+
+export function buildMongoRestoreArgs(uri, database, dbBackupPath, restoreMode = "merge") {
+  const args = ["--uri", uri, "--db", database];
+
+  if (restoreMode === "replace") {
+    args.push("--drop");
+  }
+
+  args.push(dbBackupPath);
+
+  return args;
+}
 
 export class MongoAdapter extends BaseAdapter {
   constructor(config) {
@@ -11,15 +46,7 @@ export class MongoAdapter extends BaseAdapter {
   }
 
     buildUri() {
-      const { uri, host, port, user, password, database } = this.config;
-
-      if (uri && uri.trim() !== "") {
-        return uri;
-      }
-      if (user && password) {
-        return `mongodb://${user}:${password}@${host}:${port}/${database}?authSource=admin`;
-      }
-      return `mongodb://${host}:${port}/${database}`;
+      return buildMongoUri(this.config);
     }
 
   async testConnection() {
@@ -34,7 +61,7 @@ export class MongoAdapter extends BaseAdapter {
     return new Promise((resolve, reject) => {
       proc.on("close", (code) => {
         if (code === 0) resolve(true);
-        else reject(new Error("MongoDB connection failed"));
+        else reject(new ConnectionError("MongoDB connection test failed"));
       });
     });
   }
@@ -74,7 +101,7 @@ export class MongoAdapter extends BaseAdapter {
     const uri = this.buildUri();
 
     if (!output) {
-        throw new Error("Output directory is missing in config");
+      throw new ValidationError("Output directory is missing in config");
     }
 
     const outputPath = path.join(
@@ -86,12 +113,7 @@ export class MongoAdapter extends BaseAdapter {
         fs.mkdirSync(outputPath, { recursive: true });
     }
 
-    const args = [
-      "--uri",
-      uri,
-      "--drop",
-      dbBackupPath,
-    ];
+    const args = buildMongoDumpArgs(uri, outputPath);
 
     const proc = spawn("mongodump", args);
 
@@ -107,7 +129,7 @@ export class MongoAdapter extends BaseAdapter {
         }
 
         proc.on("error", (err) => {
-        reject(new Error(`Failed to start mongodump: ${err.message}`));
+        reject(new BackupError(`Failed to start mongodump: ${err.message}`));
         });
 
         proc.on("close", (code) => {
@@ -129,29 +151,23 @@ export class MongoAdapter extends BaseAdapter {
                     resolve(outputPath);
                 }
                 } catch (err) {
-                reject(new Error("Compression failed: " + err.message));
+                reject(new BackupError("Compression failed: " + err.message));
                 }
             } else {
-                reject(new Error("MongoDB backup failed"));
+                reject(new BackupError("MongoDB backup failed"));
             }
             });
     });
     }
 
   async restore(backupPath) {
-    const { database } = this.config;
+    const { database, restoreMode } = this.config;
 
     const uri = this.buildUri();
 
     const dbBackupPath = path.join(backupPath, database);
 
-    const args = [
-      "--uri",
-      uri,
-      "--db",
-      database,
-      dbBackupPath,
-    ];
+    const args = buildMongoRestoreArgs(uri, database, dbBackupPath, restoreMode);
 
     const proc = spawn("mongorestore", args);
 
@@ -166,7 +182,7 @@ export class MongoAdapter extends BaseAdapter {
 
       proc.on("close", (code) => {
         if (code === 0) resolve(true);
-        else reject(new Error("MongoDB restore failed"));
+        else reject(new RestoreError("MongoDB restore failed"));
       });
     });
   }

@@ -3,6 +3,60 @@ import { BaseAdapter } from "./baseAdapter.js";
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
+import { BackupError, ConnectionError, RestoreError, ValidationError } from "../utils/errors.js";
+
+export function buildPostgresLocalConnectionArgs({ host, port, user, database }) {
+  return [
+    "-h", host,
+    "-p", String(port),
+    "-U", user,
+    "-d", database,
+    "-c", "SELECT 1;",
+  ];
+}
+
+export function buildPostgresDockerConnectionArgs({ password, container, user, database }) {
+  return [
+    "exec",
+    "-e", `PGPASSWORD=${password}`,
+    container,
+    "psql",
+    "-U", user,
+    "-d", database,
+    "-c", "SELECT 1;",
+  ];
+}
+
+export function buildPostgresLocalDumpArgs({ host, port, user, database }) {
+  return [
+    "-h", host,
+    "-p", String(port),
+    "-U", user,
+    "-d", database,
+    "-F", "p",
+  ];
+}
+
+export function buildPostgresDockerDumpArgs({ password, container, user, database }) {
+  return [
+    "exec",
+    "-e", `PGPASSWORD=${password}`,
+    "-i",
+    container,
+    "pg_dump",
+    "-U", user,
+    "-d", database,
+  ];
+}
+
+export function buildPostgresRestoreArgs({ host, port, user, database }) {
+  return [
+    "-h", host,
+    "-p", String(port),
+    "-U", user,
+    "-d", database,
+  ];
+}
 
 export class PostgresAdapter extends BaseAdapter {
   constructor(config) {
@@ -14,14 +68,12 @@ export class PostgresAdapter extends BaseAdapter {
 
     // 🐳 Docker mode
     if (mode === "docker") {
+      if (!container) {
+        throw new ValidationError("Docker container name is required for PostgreSQL docker mode");
+      }
+
       const proc = spawn("docker", [
-        "exec",
-        "-e", `PGPASSWORD=${password}`,
-        container,
-        "psql",
-        "-U", user,
-        "-d", database,
-        "-c", "SELECT 1;"
+        ...buildPostgresDockerConnectionArgs({ password, container, user, database }),
       ]);
 
       let errorOutput = "";
@@ -33,7 +85,7 @@ export class PostgresAdapter extends BaseAdapter {
       return new Promise((resolve, reject) => {
         proc.on("close", (code) => {
           if (code === 0) resolve(true);
-          else reject(errorOutput || "Docker PostgreSQL connection failed");
+          else reject(new ConnectionError(errorOutput || "Docker PostgreSQL connection failed"));
         });
       });
     }
@@ -42,11 +94,7 @@ export class PostgresAdapter extends BaseAdapter {
     const proc = spawn(
       "psql",
       [
-        "-h", host,
-        "-p", String(port),
-        "-U", user,
-        "-d", database,
-        "-c", "SELECT 1;"
+        ...buildPostgresLocalConnectionArgs({ host, port, user, database }),
       ],
       {
         env: {
@@ -65,7 +113,7 @@ export class PostgresAdapter extends BaseAdapter {
     return new Promise((resolve, reject) => {
       proc.on("close", (code) => {
         if (code === 0) resolve(true);
-        else reject(errorOutput || "PostgreSQL connection failed");
+        else reject(new ConnectionError(errorOutput || "PostgreSQL connection failed"));
       });
     });
   }
@@ -94,11 +142,7 @@ export class PostgresAdapter extends BaseAdapter {
     const dump = spawn(
         "pg_dump",
         [
-        "-h", host,
-        "-p", String(port),
-        "-U", user,
-        "-d", database,
-        "-F", "p"
+        ...buildPostgresLocalDumpArgs({ host, port, user, database }),
         ],
         {
         env: {
@@ -128,7 +172,7 @@ export class PostgresAdapter extends BaseAdapter {
         dump.on("close", (code) => {
         if (code !== 0) {
               return reject(
-                errorOutput || `PostgreSQL backup failed (exit code ${code})`
+                new BackupError(errorOutput || `PostgreSQL backup failed (exit code ${code})`)
               );
             }
         if (compress) {
@@ -140,7 +184,7 @@ export class PostgresAdapter extends BaseAdapter {
             if (gzipCode === 0) {
                 resolve(`${filePath}.gz`);
             } else {
-                reject("Compression failed");
+              reject(new BackupError("Compression failed"));
             }
             });
         } else {
@@ -155,7 +199,7 @@ export class PostgresAdapter extends BaseAdapter {
         this.config;
 
     if (!container) {
-        throw new Error("Docker container name is required for docker mode");
+      throw new ValidationError("Docker container name is required for docker mode");
     }
 
     if (!fs.existsSync(output)) {
@@ -175,15 +219,7 @@ export class PostgresAdapter extends BaseAdapter {
         console.log("Starting pg_dump (docker)...");
     }
 
-    const dump = spawn("docker", [
-        "exec",
-        "-e", `PGPASSWORD=${password}`,
-        "-i",
-        container,
-        "pg_dump",
-        "-U", user,
-        "-d", database
-    ]);
+    const dump = spawn("docker", buildPostgresDockerDumpArgs({ password, container, user, database }));
 
     const fileStream = fs.createWriteStream(filePath);
 
@@ -205,7 +241,7 @@ export class PostgresAdapter extends BaseAdapter {
         dump.on("close", (code) => {
         if (code !== 0) {
           return reject(
-            errorOutput || `PostgreSQL backup failed (docker, exit code ${code})`
+            new BackupError(errorOutput || `PostgreSQL backup failed (docker, exit code ${code})`)
           );
         } 
 
@@ -218,7 +254,7 @@ export class PostgresAdapter extends BaseAdapter {
             if (gzipCode === 0) {
                 resolve(`${filePath}.gz`);
             } else {
-                reject(`Compression failed (exit code ${gzipCode})`);
+              reject(new BackupError(`Compression failed (exit code ${gzipCode})`));
             }
             });
         } else {
@@ -248,21 +284,12 @@ export class PostgresAdapter extends BaseAdapter {
       inputStream = fs.createReadStream(filePath);
     }
 
-    const restore = spawn(
-      "psql",
-      [
-        "-h", host,
-        "-p", String(port),
-        "-U", user,
-        "-d", database
-      ],
-      {
-        env: {
-          ...process.env,
-          PGPASSWORD: password
-        }
-      }
-    );
+    const restore = spawn("psql", buildPostgresRestoreArgs({ host, port, user, database }), {
+      env: {
+        ...process.env,
+        PGPASSWORD: password,
+      },
+    });
 
     inputStream.pipe(restore.stdin);
 
@@ -272,9 +299,11 @@ export class PostgresAdapter extends BaseAdapter {
       errorOutput += data.toString();
     });
 
-    restore.on("close", (code) => {
-      if (code === 0) resolve(true);
-      else reject(errorOutput || "Restore failed");
+    return new Promise((resolve, reject) => {
+      restore.on("close", (code) => {
+        if (code === 0) resolve(true);
+        else reject(new RestoreError(errorOutput || "PostgreSQL restore failed"));
+      });
     });
   }
 }

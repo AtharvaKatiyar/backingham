@@ -8,10 +8,11 @@ import inquirer from "inquirer";
 import { addBackup } from "../../registry/registry.js";
 import fs from "fs";
 import path from "path";
+import { formatError, ValidationError } from "../../utils/errors.js";
 
 export default async function createBackup(options) {
   try {
-    console.log("Starting backup...");
+    console.log("Starting backup process...");
 
     let config = normalizeOptions(options);
     if (!config.db) {
@@ -32,13 +33,15 @@ export default async function createBackup(options) {
       config = { ...config, ...(await getMySQLConfig()) };
     } else if (config.db === "postgres") {
       config = { ...config, ...(await getPostgresConfig()) };
+    } else {
+      throw new ValidationError("Unsupported database type selected", { db: config.db });
     }
-    console.log("Final Config:", config);
+    console.log(`Using adapter: ${config.db}`);
 
     const adapter = getAdapter(config);
     await adapter.testConnection();
     const file = await adapter.backup();
-    console.log("Backup created at:", file);
+    console.log("Backup created successfully at:", file);
 
     const stats = fs.statSync(file);
 
@@ -67,6 +70,6 @@ export default async function createBackup(options) {
 
 
   } catch (err) {
-    console.error("Error:", err?.message || err);
+    console.error("Backup operation failed:", formatError(err));
   }
 }

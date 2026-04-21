@@ -1,4 +1,4 @@
-# DB Backup CLI
+# BACKINGHUM (A DB Backup CLI)
 
 A Node.js command-line tool to create, list, restore, and delete database backups for:
 
@@ -6,7 +6,7 @@ A Node.js command-line tool to create, list, restore, and delete database backup
 - MySQL
 - PostgreSQL (local/remote and Docker mode)
 
-The CLI is interactive and stores backup metadata in a local JSON registry.
+The CLI is interactive and stores backup metadata in a local JSON registry under your home directory.
 
 ---
 
@@ -29,7 +29,7 @@ The CLI is interactive and stores backup metadata in a local JSON registry.
   - MySQL (`mysql`)
   - PostgreSQL (`psql`)
 - Backup deletion by backup ID (file/folder + registry entry).
-- Registry persistence in `src/registry/backupRegistry.json`.
+- Registry persistence in `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` override).
 - Connection snapshot saved with each backup entry to support future restore runs.
 
 ---
@@ -50,7 +50,7 @@ The CLI is interactive and stores backup metadata in a local JSON registry.
   - `postgresAdapter.js`
 - `src/prompts/` – interactive prompt flows per database.
 - `src/registry/registry.js` – registry read/write helpers.
-- `src/registry/backupRegistry.json` – persisted backup metadata.
+- Runtime registry path: `$HOME/.db_backup/backupRegistry.json`.
 - `src/utils/` – option normalization + utility helpers.
 
 ---
@@ -201,7 +201,7 @@ Run:
 
 What it does:
 
-- Reads `src/registry/backupRegistry.json`
+- Reads `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` if set)
 - Prints backup history with:
   - ID
   - DB type
@@ -286,8 +286,20 @@ This allows restore operations to reuse the original connection details.
 ## Notes
 
 - The CLI command metadata name is `db-backup`, while the linked executable from `package.json` is `db_backup`.
-- Keep `src/registry/backupRegistry.json` in version control only if you intentionally want shared backup metadata.
+- The registry file path can be overridden using `DB_BACKUP_REGISTRY_PATH`.
 - Backups can contain sensitive credentials in the saved connection snapshot; protect this project directory accordingly.
+
+---
+
+## Security Hardening
+
+- Run security checks before publish:
+  - `npm test`
+  - `npm run audit`
+- `prepublishOnly` enforces tests + audit before publishing.
+- Package publish is restricted using the `files` allowlist in `package.json` to reduce accidental file leakage.
+- Unused dependencies were removed to reduce supply-chain risk.
+- Enable npm provenance during publish for package integrity attestation.
 
 ---
 

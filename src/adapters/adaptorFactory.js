@@ -2,10 +2,15 @@
 import { MySQLAdapter } from "./mysqlAdaptor.js";
 import { PostgresAdapter } from "./postgresAdapter.js";
 import { MongoAdapter } from "./mongoAdapter.js";
+import { ValidationError } from "../utils/errors.js";
 
 
 export function getAdapter(config) {
-  const db = config.db.toLowerCase();
+  if (!config?.db) {
+    throw new ValidationError("Database type is required in config", { field: "db" });
+  }
+
+  const db = String(config.db).toLowerCase();
 
   switch (db) {
     case "mysql":
@@ -18,6 +23,6 @@ export function getAdapter(config) {
       return new MongoAdapter(config);
 
     default:
-      throw new Error(`Unsupported database type: ${db}`);
+      throw new ValidationError(`Unsupported database type: ${db}`);
   }
 }

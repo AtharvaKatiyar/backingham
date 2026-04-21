@@ -3,6 +3,31 @@ import { BaseAdapter } from "./baseAdapter.js";
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
+import { BackupError, ConnectionError, RestoreError } from "../utils/errors.js";
+
+export function normalizeMySQLHost(host) {
+  return host === "localhost" ? "127.0.0.1" : host;
+}
+
+export function buildMySQLClientArgs({ host, port, user, password, database }) {
+  return [
+    "-h", normalizeMySQLHost(host),
+    "-P", String(port),
+    "-u", user,
+    `-p${password}`,
+    database,
+  ];
+}
+
+export function buildMySQLDumpArgs({ host, port, user, password, database }) {
+  return [
+    "-h", normalizeMySQLHost(host),
+    "-P", String(port),
+    "-u", user,
+    `-p${password}`,
+    database,
+  ];
+}
 
 export class MySQLAdapter extends BaseAdapter {
   constructor(config) {
@@ -13,7 +38,7 @@ export class MySQLAdapter extends BaseAdapter {
     const { host, port, user, password } = this.config;
 
     const proc = spawn("mysql", [
-      "-h", host === "localhost" ? "127.0.0.1" : host,
+      "-h", normalizeMySQLHost(host),
       "-P", String(port),
       "-u", user,
       `-p${password}`,
@@ -23,7 +48,7 @@ export class MySQLAdapter extends BaseAdapter {
     return new Promise((resolve, reject) => {
       proc.on("close", (code) => {
         if (code === 0) resolve(true);
-        else reject("MySQL connection failed");
+        else reject(new ConnectionError("MySQL connection failed"));
       });
     });
   }
@@ -31,8 +56,6 @@ export class MySQLAdapter extends BaseAdapter {
   async backup() {
     const { host, port, user, password, database, output, compress, verbose } =
       this.config;
-
-    const safeHost = host === "localhost" ? "127.0.0.1" : host;
 
     if (!fs.existsSync(output)) {
       fs.mkdirSync(output, { recursive: true });
@@ -51,13 +74,7 @@ export class MySQLAdapter extends BaseAdapter {
       console.log("Starting mysqldump...");
     }
 
-    const dump = spawn("mysqldump", [
-      "-h", safeHost,
-      "-P", String(port),
-      "-u", user,
-      `-p${password}`,
-      database
-    ]);
+    const dump = spawn("mysqldump", buildMySQLDumpArgs({ host, port, user, password, database }));
 
     const fileStream = fs.createWriteStream(filePath);
 
@@ -80,7 +97,7 @@ export class MySQLAdapter extends BaseAdapter {
       dump.on("close", (code) => {
         if (code !== 0) {
           return reject(
-            errorOutput || `MySQL backup failed (exit code ${code})`
+            new BackupError(errorOutput || `MySQL backup failed (exit code ${code})`)
           );
         }
 
@@ -93,7 +110,7 @@ export class MySQLAdapter extends BaseAdapter {
             if (gzipCode === 0) {
               resolve(`${filePath}.gz`);
             } else {
-              reject("Compression failed");
+              reject(new BackupError("Compression failed"));
             }
           });
         } else {
@@ -106,8 +123,6 @@ export class MySQLAdapter extends BaseAdapter {
   async restore(filePath) {
     const { host, port, user, password, database } = this.config;
 
-    const safeHost = host === "localhost" ? "127.0.0.1" : host;
-
     let inputStream;
 
     if (filePath.endsWith(".gz")) {
@@ -117,20 +132,14 @@ export class MySQLAdapter extends BaseAdapter {
       inputStream = fs.createReadStream(filePath);
     }
 
-    const restore = spawn("mysql", [
-      "-h", safeHost,
-      "-P", String(port),
-      "-u", user,
-      `-p${password}`,
-      database
-    ]);
+    const restore = spawn("mysql", buildMySQLClientArgs({ host, port, user, password, database }));
 
     inputStream.pipe(restore.stdin);
 
     return new Promise((resolve, reject) => {
       restore.on("close", (code) => {
         if (code === 0) resolve(true);
-        else reject("Restore failed");
+        else reject(new RestoreError("MySQL restore failed"));
       });
     });
   }
