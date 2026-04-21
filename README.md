@@ -24,9 +24,9 @@ backinghum --version
 
 ## Documentation
 
-- Installation guide: [docs/INSTALLATION.md](docs/INSTALLATION.md)
-- Commands reference: [docs/COMMANDS.md](docs/COMMANDS.md)
-- Internal architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Installation guide: [docs/INSTALLATION.md](https://unpkg.com/backinghum@latest/docs/INSTALLATION.md)
+- Commands reference: [docs/COMMANDS.md](https://unpkg.com/backinghum@latest/docs/COMMANDS.md)
+- Internal architecture: [docs/ARCHITECTURE.md](https://unpkg.com/backinghum@latest/docs/ARCHITECTURE.md)
 
 ---
 
