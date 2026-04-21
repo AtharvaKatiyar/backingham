@@ -22,12 +22,10 @@
   "engines": {
     "node": ">=20"
   },
-  "publishConfig": {
-    "provenance": true
-  },
   "files": [
     "bin/cli.js",
     "src",
+    "docs",
     "README.md",
     "LICENSE",
     "SECURITY.md"
