@@ -37,6 +37,6 @@
     "inquirer": "^8.2.7"
   },
   "bin": {
-    "backinghum": "./bin/cli.js"
+    "backinghum": "bin/cli.js"
   }
 }
