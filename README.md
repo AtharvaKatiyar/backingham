@@ -8,6 +8,26 @@ A Node.js command-line tool to create, list, restore, and delete database backup
 
 The CLI is interactive and stores backup metadata in a local JSON registry under your home directory.
 
+## Install from npm
+
+```bash
+npm install -g backinghum
+```
+
+Verify installation:
+
+```bash
+backinghum --version
+```
+
+---
+
+## Documentation
+
+- Installation guide: [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- Commands reference: [docs/COMMANDS.md](docs/COMMANDS.md)
+- Internal architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 ---
 
 ## Features Implemented
@@ -82,14 +102,22 @@ Install Node.js (recommended LTS), then install the database client tools used b
 
 ## Installation
 
+### A) End users (recommended)
+
+- `npm install -g backinghum`
+
+### B) Contributors / local development
+
 From the project root:
 
 1. Install dependencies:
-   - `npm install`
-2. Link the CLI globally for local development:
-   - `npm link`
+  - `npm install`
+2. Run CLI directly:
+  - `node bin/cli.js --help`
+3. Optional local link:
+  - `npm link`
 
-After linking, the executable comes from the package `bin` config (`db_backup`).
+After linking, the executable command is `backinghum`.
 
 ---
 
@@ -111,11 +139,11 @@ Main options currently wired on `backup:create`:
 
 Run:
 
-- `db_backup backup:create`
+- `backinghum backup:create`
 - Optional flags:
-  - `db_backup backup:create --compress`
-  - `db_backup backup:create --verbose`
-  - `db_backup backup:create --compress --verbose`
+  - `backinghum backup:create --compress`
+  - `backinghum backup:create --verbose`
+  - `backinghum backup:create --compress --verbose`
 
 Flow:
 
@@ -197,7 +225,7 @@ PostgreSQL backup output:
 
 Run:
 
-- `db_backup backup:list`
+- `backinghum backup:list`
 
 What it does:
 
@@ -216,7 +244,7 @@ What it does:
 
 Run:
 
-- `db_backup backup:restore <id>`
+- `backinghum backup:restore <id>`
 
 Flow:
 
@@ -241,7 +269,7 @@ Restore behavior by DB:
 
 Run:
 
-- `db_backup backup:delete <id>`
+- `backinghum backup:delete <id>`
 
 What it does:
 
@@ -272,20 +300,20 @@ This allows restore operations to reuse the original connection details.
 ## Typical End-to-End Example
 
 1. Create backup:
-   - `db_backup backup:create --compress --verbose`
+  - `backinghum backup:create --compress --verbose`
 2. List backups:
-   - `db_backup backup:list`
+  - `backinghum backup:list`
 3. Pick an ID from output.
 4. Restore backup:
-   - `db_backup backup:restore 1776174984348`
+  - `backinghum backup:restore 1776174984348`
 5. Delete old backup if needed:
-   - `db_backup backup:delete 1776174984348`
+  - `backinghum backup:delete 1776174984348`
 
 ---
 
 ## Notes
 
-- The CLI command metadata name is `db-backup`, while the linked executable from `package.json` is `db_backup`.
+- The linked executable from `package.json` is `backinghum`.
 - The registry file path can be overridden using `DB_BACKUP_REGISTRY_PATH`.
 - Backups can contain sensitive credentials in the saved connection snapshot; protect this project directory accordingly.
 
@@ -299,7 +327,7 @@ This allows restore operations to reuse the original connection details.
 - `prepublishOnly` enforces tests + audit before publishing.
 - Package publish is restricted using the `files` allowlist in `package.json` to reduce accidental file leakage.
 - Unused dependencies were removed to reduce supply-chain risk.
-- Enable npm provenance during publish for package integrity attestation.
+- Use npm 2FA and OTP-based publish for account security.
 
 ---
 
