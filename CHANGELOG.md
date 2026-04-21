@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.6] - 2026-04-22
+
+### Security
+- Enforced per-user registry isolation in `src/registry/registry.js`.
+- `DB_BACKUP_REGISTRY_PATH` now falls back to default unless it points inside the current user's home directory.
+- Registry directory/file creation now uses restrictive permissions (`0700` dir, `0600` file).
+- Removed legacy registry seeding behavior from repository paths.
+- Added ignore rules for local runtime artifacts:
+  - `src/registry/backupRegistry.json`
+  - `backups/`
+
+### Documentation
+- Updated README and installation docs to clarify user-scoped registry behavior and safe override constraints.
+
+### Repository Hygiene
+- Removed tracked registry artifact from source tree to reduce accidental secret commits.
+- Performed repository secret remediation workflow (history cleanup and force-push) for previously leaked registry content.
+
 ## [1.0.5] - 2026-04-22
 
 ### Security
