@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.5] - 2026-04-22
+
+### Security
+- Removed the unused shell-string command helper behavior in `src/utils/exec.js`.
+- Reduced shell-invocation risk by keeping command execution argument-based in adapters.
+
+### Documentation
+- Updated `SECURITY.md` with explicit command execution safety notes:
+  - shell-string helper removed
+  - no `shell: true` mode used
+  - adapters use argument-based process spawning
+
 ## [1.0.4] - 2026-04-22
 
 ### Features
