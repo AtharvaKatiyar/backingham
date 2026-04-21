@@ -1,10 +1,10 @@
 //mongoAdapter.js
 import { BaseAdapter } from "./baseAdapter.js";
 import { spawn } from "child_process";
-import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { BackupError, ConnectionError, RestoreError, ValidationError } from "../utils/errors.js";
+import { sanitizeFileComponent } from "../utils/sanitize.js";
 
 export function buildMongoUri(config) {
   const { uri, host, port, user, password, database } = config;
@@ -38,6 +38,30 @@ export function buildMongoRestoreArgs(uri, database, dbBackupPath, restoreMode =
   args.push(dbBackupPath);
 
   return args;
+}
+
+function compressDirectoryToTarGz(outputDir, sourceDir, zipPath) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("tar", ["-czf", zipPath, "-C", outputDir, path.basename(sourceDir)]);
+
+    let errorOutput = "";
+
+    proc.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+    });
+
+    proc.on("error", (err) => {
+      reject(new BackupError(`Failed to start tar compression: ${err.message}`));
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve(true);
+      } else {
+        reject(new BackupError(errorOutput || `Compression failed (exit code ${code})`));
+      }
+    });
+  });
 }
 
 export class MongoAdapter extends BaseAdapter {
@@ -104,9 +128,11 @@ export class MongoAdapter extends BaseAdapter {
       throw new ValidationError("Output directory is missing in config");
     }
 
+    const safeDatabaseName = sanitizeFileComponent(database, "mongodb");
+
     const outputPath = path.join(
-        output,
-        `${database}-${Date.now()}`
+      output,
+      `${safeDatabaseName}-${Date.now()}`
     );
 
     if (!fs.existsSync(outputPath)) {
@@ -138,15 +164,15 @@ export class MongoAdapter extends BaseAdapter {
                 if (compress) {
                     const zipPath = `${outputPath}.tar.gz`;
 
-                    execSync(
-                        `tar -czf "${zipPath}" -C "${output}" "${path.basename(outputPath)}"`
-                    );
+                    compressDirectoryToTarGz(output, outputPath, zipPath)
+                      .then(() => {
+                        console.log("✔ Backup compressed:", zipPath);
 
-                    console.log("✔ Backup compressed:", zipPath);
+                        fs.rmSync(outputPath, { recursive: true, force: true });
 
-                    fs.rmSync(outputPath, { recursive: true, force: true });
-
-                    resolve(zipPath);
+                        resolve(zipPath);
+                      })
+                      .catch((err) => reject(err));
                     } else {
                     resolve(outputPath);
                 }

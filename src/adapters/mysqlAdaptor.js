@@ -4,9 +4,22 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { BackupError, ConnectionError, RestoreError } from "../utils/errors.js";
+import { sanitizeFileComponent } from "../utils/sanitize.js";
 
 export function normalizeMySQLHost(host) {
   return host === "localhost" ? "127.0.0.1" : host;
+}
+
+function parseMySQLUri(uri) {
+  const url = new URL(uri);
+
+  return {
+    host: url.hostname,
+    port: url.port || "3306",
+    user: url.username,
+    password: url.password,
+    database: url.pathname.replace("/", ""),
+  };
 }
 
 export function buildMySQLClientArgs({ host, port, user, password, database }) {
@@ -35,26 +48,49 @@ export class MySQLAdapter extends BaseAdapter {
   }
 
   async testConnection() {
-    const { host, port, user, password } = this.config;
+    const { host, port, user, password, uri } = this.config;
 
-    const proc = spawn("mysql", [
-      "-h", normalizeMySQLHost(host),
-      "-P", String(port),
-      "-u", user,
-      `-p${password}`,
-      "-e", "SELECT 1;"
-    ]);
+    let proc;
+
+    if (uri) {
+      const parsed = parseMySQLUri(uri);
+
+      proc = spawn(
+        "mysql",
+        [
+          "-h", normalizeMySQLHost(parsed.host),
+          "-P", String(parsed.port),
+          "-u", parsed.user,
+          `-p${parsed.password}`,
+          "-e", "SELECT 1;"
+        ]
+      );
+    } else {
+      proc = spawn(
+        "mysql",
+        [
+          "-h", normalizeMySQLHost(host),
+          "-P", String(port),
+          "-u", user,
+          `-p${password}`,
+          "-e", "SELECT 1;"
+        ]
+      );
+    }
 
     return new Promise((resolve, reject) => {
+      proc.on("error", (err) => {
+        reject(new ConnectionError(err.message));
+      });
+
       proc.on("close", (code) => {
         if (code === 0) resolve(true);
         else reject(new ConnectionError("MySQL connection failed"));
       });
     });
   }
-
   async backup() {
-    const { host, port, user, password, database, output, compress, verbose } =
+    const { host, port, user, password, database, output, compress, verbose, uri } =
       this.config;
 
     if (!fs.existsSync(output)) {
@@ -67,14 +103,29 @@ export class MySQLAdapter extends BaseAdapter {
       .replace("T", "_")
       .replace("Z", "");
 
-    const filename = `${database}_${timestamp}.sql`;
+    const safeDatabaseName = sanitizeFileComponent(database, "mysql");
+    const filename = `${safeDatabaseName}_${timestamp}.sql`;
     const filePath = path.join(output, filename);
 
     if (verbose) {
       console.log("Starting mysqldump...");
     }
 
-    const dump = spawn("mysqldump", buildMySQLDumpArgs({ host, port, user, password, database }));
+    let dump;
+
+    if (uri) {
+      const parsed = parseMySQLUri(uri);
+
+      dump = spawn(
+        "mysqldump",
+        buildMySQLDumpArgs(parsed)
+      );
+    } else {
+      dump = spawn(
+        "mysqldump",
+        buildMySQLDumpArgs({ host, port, user, password, database })
+      );
+    }
 
     const fileStream = fs.createWriteStream(filePath);
 
@@ -121,7 +172,7 @@ export class MySQLAdapter extends BaseAdapter {
   }
 
   async restore(filePath) {
-    const { host, port, user, password, database } = this.config;
+    const { host, port, user, password, database, uri } = this.config;
 
     let inputStream;
 
@@ -132,7 +183,21 @@ export class MySQLAdapter extends BaseAdapter {
       inputStream = fs.createReadStream(filePath);
     }
 
-    const restore = spawn("mysql", buildMySQLClientArgs({ host, port, user, password, database }));
+    let restore;
+
+    if (uri) {
+      const parsed = parseMySQLUri(uri);
+
+      restore = spawn(
+        "mysql",
+        buildMySQLClientArgs(parsed)
+      );
+    } else {
+      restore = spawn(
+        "mysql",
+        buildMySQLClientArgs({ host, port, user, password, database })
+      );
+    }
 
     inputStream.pipe(restore.stdin);
 

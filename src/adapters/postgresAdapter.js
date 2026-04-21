@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { BackupError, ConnectionError, RestoreError, ValidationError } from "../utils/errors.js";
+import { sanitizeFileComponent } from "../utils/sanitize.js";
 
 export function buildPostgresLocalConnectionArgs({ host, port, user, database }) {
   return [
@@ -65,6 +66,34 @@ export class PostgresAdapter extends BaseAdapter {
 
   async testConnection() {
     const { host, port, user, password, database, mode, container } = this.config;
+
+    const { uri } = this.config;
+
+    // 🔥 URI MODE
+    if (uri) {
+      const proc = spawn("psql", [
+        uri,
+        "-c",
+        "SELECT 1;"
+      ]);
+
+      let errorOutput = "";
+
+      proc.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+      });
+
+      return new Promise((resolve, reject) => {
+        proc.on("error", (err) => {
+          reject(new ConnectionError(err.message));
+        });
+
+        proc.on("close", (code) => {
+          if (code === 0) resolve(true);
+          else reject(new ConnectionError(errorOutput || "PostgreSQL URI connection failed"));
+        });
+      });
+    }
 
     // 🐳 Docker mode
     if (mode === "docker") {
@@ -132,25 +161,30 @@ export class PostgresAdapter extends BaseAdapter {
         .replace("T", "_")
         .replace("Z", "");
 
-    const filename = `${database}_${timestamp}.sql`;
+    const safeDatabaseName = sanitizeFileComponent(database, "postgres");
+    const filename = `${safeDatabaseName}_${timestamp}.sql`;
     const filePath = path.join(output, filename);
 
     if (verbose) {
         console.log("Starting pg_dump (local)...");
     }
 
-    const dump = spawn(
+    let dump;
+
+    if (this.config.uri) {
+      dump = spawn("pg_dump", [this.config.uri]);
+    } else {
+      dump = spawn(
         "pg_dump",
-        [
-        ...buildPostgresLocalDumpArgs({ host, port, user, database }),
-        ],
+        buildPostgresLocalDumpArgs({ host, port, user, database }),
         {
-        env: {
+          env: {
             ...process.env,
-            PGPASSWORD: password
+            PGPASSWORD: password,
+          },
         }
-        }
-    );
+      );
+    }
 
     const fileStream = fs.createWriteStream(filePath);
 
@@ -212,7 +246,8 @@ export class PostgresAdapter extends BaseAdapter {
         .replace("T", "_")
         .replace("Z", "");
 
-    const filename = `${database}_${timestamp}.sql`;
+    const safeDatabaseName = sanitizeFileComponent(database, "postgres");
+    const filename = `${safeDatabaseName}_${timestamp}.sql`;
     const filePath = path.join(output, filename);
 
     if (verbose) {
@@ -284,13 +319,22 @@ export class PostgresAdapter extends BaseAdapter {
       inputStream = fs.createReadStream(filePath);
     }
 
-    const restore = spawn("psql", buildPostgresRestoreArgs({ host, port, user, database }), {
-      env: {
-        ...process.env,
-        PGPASSWORD: password,
-      },
-    });
+    let restore;
 
+    if (this.config.uri) {
+      restore = spawn("psql", [this.config.uri]);
+    } else {
+      restore = spawn(
+        "psql",
+        buildPostgresRestoreArgs({ host, port, user, database }),
+        {
+          env: {
+            ...process.env,
+            PGPASSWORD: password,
+          },
+        }
+      );
+    }
     inputStream.pipe(restore.stdin);
 
     let errorOutput = "";

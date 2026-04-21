@@ -1,11 +1,8 @@
 import inquirer from "inquirer";
 
 export async function getMySQLConfig() {
-  const base = {
-    db: "mysql",
-  };
+  const base = { db: "mysql" };
 
-  // 🔥 Step 1: Connection type
   const { connectionType } = await inquirer.prompt([
     {
       type: "list",
@@ -15,17 +12,57 @@ export async function getMySQLConfig() {
     },
   ]);
 
-  // 🔥 Common questions
-  const questions = [
+  // 🖥️ LOCAL
+  if (connectionType === "Local") {
+    const answers = await inquirer.prompt([
+      { name: "host", default: "127.0.0.1", message: "Enter database host:" },
+      { name: "port", default: "3306", message: "Enter database port:" },
+      { name: "user", default: "root", message: "Enter database user:" },
+      { type: "password", name: "password", message: "Enter password:" },
+      { name: "database", message: "Enter database name:" },
+      { name: "output", default: "./backups", message: "Output directory:" },
+    ]);
+
+    return { ...base, ...answers, mode: "local" };
+  }
+
+  // 🌐 REMOTE
+  const { method } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "method",
+      message: "How do you want to connect?",
+      choices: ["Connection URI", "Manual details"],
+    },
+  ]);
+
+  // 🔥 URI MODE
+  if (method === "Connection URI") {
+    const answers = await inquirer.prompt([
+      {
+        name: "uri",
+        message: "Enter MySQL connection URI:",
+      },
+      {
+        name: "output",
+        default: "./backups",
+        message: "Output directory:",
+      },
+    ]);
+
+    return { ...base, ...answers, mode: "remote" };
+  }
+
+  // 🔥 MANUAL MODE
+  const answers = await inquirer.prompt([
     {
       name: "host",
-      message: "Enter database host:",
-      default: "127.0.0.1",
+      message: "Enter remote host (e.g., db.amazonaws.com):",
     },
     {
       name: "port",
-      message: "Enter database port:",
       default: "3306",
+      message: "Enter port:",
     },
     {
       name: "user",
@@ -34,24 +71,24 @@ export async function getMySQLConfig() {
     {
       type: "password",
       name: "password",
-      message: "Enter database password:",
+      message: "Enter password:",
     },
     {
       name: "database",
       message: "Enter database name:",
     },
     {
-      name: "output",
-      message: "Enter output directory:",
-      default: "./backups",
+      type: "confirm",
+      name: "ssl",
+      message: "Does this require SSL?",
+      default: true,
     },
-  ];
+    {
+      name: "output",
+      default: "./backups",
+      message: "Output directory:",
+    },
+  ]);
 
-  const answers = await inquirer.prompt(questions);
-
-  return {
-    ...base,
-    ...answers,
-    connectionType,
-  };
+  return { ...base, ...answers, mode: "remote" };
 }

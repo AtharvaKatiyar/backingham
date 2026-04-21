@@ -1,9 +1,7 @@
 import inquirer from "inquirer";
 
 export async function getPostgresConfig() {
-  const base = {
-    db: "postgres",
-  };
+  const base = { db: "postgres" };
 
   const { connectionType } = await inquirer.prompt([
     {
@@ -14,76 +12,74 @@ export async function getPostgresConfig() {
     },
   ]);
 
+  // 🐳 Docker (same as before)
   if (connectionType === "Docker") {
     const answers = await inquirer.prompt([
+      { name: "container", message: "Enter container name:" },
+      { name: "user", message: "Enter user:" },
+      { type: "password", name: "password" },
+      { name: "database" },
+      { name: "output", default: "./backups" },
+    ]);
+
+    return { ...base, ...answers, mode: "docker" };
+  }
+
+  // 🖥️ LOCAL
+  if (connectionType === "Local") {
+    const answers = await inquirer.prompt([
+      { name: "host", default: "127.0.0.1" },
+      { name: "port", default: "5432" },
+      { name: "user", default: "postgres" },
+      { type: "password", name: "password" },
+      { name: "database" },
+      { name: "output", default: "./backups" },
+    ]);
+
+    return { ...base, ...answers, mode: "local" };
+  }
+
+  // 🌐 REMOTE
+  const { method } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "method",
+      message: "How do you want to connect?",
+      choices: ["Connection URI", "Manual details"],
+    },
+  ]);
+
+  // 🔥 URI MODE
+  if (method === "Connection URI") {
+    const answers = await inquirer.prompt([
       {
-        name: "container",
-        message: "Enter Docker container name:",
-      },
-      {
-        name: "user",
-        message: "Enter database user:",
-      },
-      {
-        type: "password",
-        name: "password",
-        message: "Enter database password:",
-      },
-      {
-        name: "database",
-        message: "Enter database name:",
+        name: "uri",
+        message: "Enter PostgreSQL connection URI:",
       },
       {
         name: "output",
-        message: "Enter output directory:",
         default: "./backups",
       },
     ]);
 
-    return {
-      ...base,
-      ...answers,
-      mode: "docker",
-    };
+    return { ...base, ...answers, mode: "remote" };
   }
 
+  // 🔥 Manual mode (fallback)
+  const answers = await inquirer.prompt([
+    { name: "host", message: "Enter host:" },
+    { name: "port", default: "5432" },
+    { name: "user", message: "Enter user:" },
+    { type: "password", name: "password" },
+    { name: "database" },
+    {
+      type: "list",
+      name: "sslmode",
+      choices: ["disable", "require"],
+      default: "require",
+    },
+    { name: "output", default: "./backups" },
+  ]);
 
-  const questions = [
-    {
-      name: "host",
-      message: "Enter database host:",
-      default: "127.0.0.1",
-    },
-    {
-      name: "port",
-      message: "Enter database port:",
-      default: "5432",
-    },
-    {
-      name: "user",
-      message: "Enter database user:",
-    },
-    {
-      type: "password",
-      name: "password",
-      message: "Enter database password:",
-    },
-    {
-      name: "database",
-      message: "Enter database name:",
-    },
-    {
-      name: "output",
-      message: "Enter output directory:",
-      default: "./backups",
-    },
-  ];
-
-  const answers = await inquirer.prompt(questions);
-
-  return {
-    ...base,
-    ...answers,
-    mode: "local",
-  };
+  return { ...base, ...answers, mode: "remote" };
 }
