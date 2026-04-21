@@ -182,11 +182,31 @@ Mongo backup output:
 #### MySQL prompt flow
 
 - Connection type: Local or Remote
+
+If Local:
 - Host (default `127.0.0.1`)
 - Port (default `3306`)
 - User
 - Password
 - Database name
+- Output directory (default `./backups`)
+
+If Remote:
+- Connection method:
+  - Connection URI
+  - Manual details
+
+Remote + URI:
+- MySQL connection URI
+- Output directory (default `./backups`)
+
+Remote + Manual details:
+- Host
+- Port (default `3306`)
+- User
+- Password
+- Database name
+- SSL required? (yes/no)
 - Output directory (default `./backups`)
 
 MySQL backup output:
@@ -206,12 +226,30 @@ If Docker:
 - Output directory (default `./backups`)
 - Uses `docker exec` + `pg_dump`
 
-If Local/Remote:
+If Local:
 - Host (default `127.0.0.1`)
 - Port (default `5432`)
 - User
 - Password
 - Database name
+- Output directory (default `./backups`)
+
+If Remote:
+- Connection method:
+  - Connection URI
+  - Manual details
+
+Remote + URI:
+- PostgreSQL connection URI
+- Output directory (default `./backups`)
+
+Remote + Manual details:
+- Host
+- Port (default `5432`)
+- User
+- Password
+- Database name
+- `sslmode` (`disable` or `require`)
 - Output directory (default `./backups`)
 
 PostgreSQL backup output:
@@ -294,6 +332,8 @@ Each created backup is saved as an entry containing fields similar to:
 - `createdAt`
 
 This allows restore operations to reuse the original connection details.
+
+For URI-based backups, if `database` was not explicitly provided in prompts/options, the CLI derives it from the URI path (for example `/mydb` → `mydb`) before writing the registry entry.
 
 ---
 
