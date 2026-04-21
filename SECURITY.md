@@ -20,6 +20,12 @@ Only the latest published version is supported for security fixes.
 - Publish artifact restricted via `files` allowlist
 - npm provenance enabled in `publishConfig`
 
+## Command Execution Safety
+
+- Direct shell-string execution helper was removed from the codebase.
+- Database operations use argument-based process spawning in adapters.
+- No `shell: true` execution mode is used.
+
 ## Operational Recommendations
 
 - Pin Node.js to a supported LTS release
